@@ -1,0 +1,54 @@
+<?php
+
+/**
+ * @file
+ * Prevents user registration with invalid email domain.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function check_dns_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#check_dns':
+      $output = '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Check DNS module simply prevents user registration with invalid email domain on user registration form.') . '</p>';
+      $output .= '<p>' . t('It validates email domain before registration and checks if the domain exists. This prevents false registration.') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implements hook_form_form_id_form_alter().
+ */
+function check_dns_form_user_register_form_alter(&$form, &$form_state, $form_id) {
+  $form['#validate'][] = 'check_dns_user_register_validate';
+}
+
+/**
+ * Custom validation function for user_register_form().
+ *
+ * Checks if the domain in the email address is on a list of allowed domains.
+ */
+function check_dns_user_register_validate(&$form, &$form_state) {
+  // Ignore validation if mail already has an error.
+  $errors = form_get_errors();
+  if (!empty($errors['mail'])) {
+    return;
+  }
+
+  // Get the email.
+  $mail = explode('@', check_plain($form_state['values']['mail']));
+  // Fetch DNS Resource Records associated with a hostname.
+  $result = dns_check_record(end($mail));
+  
+  if (!$result) {
+    // If no record is found.
+    $error_message = t('Your email domain is not recognised. Please enter a valid email id.');
+    form_set_error('account', $error_message);
+  }
+  else {
+    return;
+  }
+
+}
